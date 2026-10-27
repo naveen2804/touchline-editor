@@ -8,6 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const { spawn } = require('child_process');
 const { buildExport } = require('./shared/exportGraph');
+const encoders = require('./shared/encoders');
 
 // Keep the recorder drawing at full speed while you're working in another window.
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
@@ -400,6 +401,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('exists', (e, files) => files.map(f => !!f && fs.existsSync(f)));
+  ipcMain.handle('probe', async (e, file) => probe(file).catch(() => null));
 
   // --- export
   ipcMain.handle('export-path', (e, name) => uniquePath(DIRS.exports, safeName(name), '.mp4'));
@@ -411,27 +413,44 @@ function registerIpc() {
     });
     return r.canceled ? null : r.filePath;
   });
+  ipcMain.handle('encoders', async () => {
+    const hardware = await encoders.detectHardware(FFMPEG);
+    return { hardware, labels: encoders.LABELS };
+  });
+
   ipcMain.handle('export-start', async (e, spec) => {
     let script = null;
     try {
       const g = buildExport(spec);
       script = path.join(os.tmpdir(), `ts_filter_${Date.now()}.txt`);
       fs.writeFileSync(script, g.filter);
-      const q = {
-        fast: ['-preset', 'veryfast', '-crf', '22'],
-        balanced: ['-preset', 'veryfast', '-crf', '19'],
-        high: ['-preset', 'medium', '-crf', '17']
-      }[spec.quality] || ['-preset', 'veryfast', '-crf', '19'];
-      const args = ['-y', ...g.inputs, '-filter_complex_script', script, ...g.maps,
-        '-c:v', 'libx264', ...q, '-pix_fmt', 'yuv420p', '-r', String(spec.settings.fps || 30),
-        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', spec.output];
       fs.mkdirSync(path.dirname(spec.output), { recursive: true });
-      await runFfmpeg(args, {
-        duration: g.duration,
-        onProgress: p => send('export-progress', p),
-        onSpawn: p => (exportProc = p)
-      });
-      return { ok: true, output: spec.output };
+
+      const hw = spec.encoder === 'cpu' ? [] : await encoders.detectHardware(FFMPEG);
+      const order = [...hw.slice(0, 1), 'libx264'];
+      let lastErr = null;
+      for (const enc of order) {
+        send('export-encoder', { encoder: enc, label: encoders.LABELS[enc] });
+        const args = ['-y', ...g.inputs,
+          '-filter_complex_threads', String(Math.max(2, os.cpus().length)),
+          '-filter_complex_script', script, ...g.maps,
+          ...encoders.encoderArgs(enc, spec.settings, spec.quality),
+          '-r', String(spec.settings.fps || 30),
+          '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-movflags', '+faststart', spec.output];
+        try {
+          send('export-progress', 0);
+          await runFfmpeg(args, {
+            duration: g.duration,
+            onProgress: p => send('export-progress', p),
+            onSpawn: p => (exportProc = p)
+          });
+          return { ok: true, output: spec.output, encoder: enc, encoderLabel: encoders.LABELS[enc], fellBack: enc !== order[0] };
+        } catch (err) {
+          if (err.message === 'cancelled') throw err;
+          lastErr = err; // hardware encoder failed mid-way → retry on the CPU
+        }
+      }
+      throw lastErr;
     } catch (err) {
       const cancelled = err.message === 'cancelled';
       if (cancelled) fs.unlink(spec.output, () => {});
@@ -539,6 +558,8 @@ app.whenReady().then(() => {
   }
   registerIpc();
   createMain();
+  // find a working GPU encoder in the background so Export is ready to use it
+  setTimeout(() => encoders.detectHardware(FFMPEG).catch(() => {}), 4000);
 
   if (process.env.TS_SNAPSHOT) require('./test/snapshot')(mainWin);
 });

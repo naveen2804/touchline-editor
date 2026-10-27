@@ -1,7 +1,7 @@
 {
   "name": "touchline-studio",
   "productName": "Touchline Studio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Record and edit football tactical-analysis videos: facecam + screen recorder and a simple clip editor.",
   "author": "Naveen Narayan",
   "main": "main.js",
@@ -9,7 +9,8 @@
     "start": "electron .",
     "dist:win": "node scripts/prune-ffprobe.js win32 x64 && electron-builder --win --x64 --publish never",
     "dist:mac": "node scripts/prune-ffprobe.js darwin ${npm_config_arch:-$(node -p process.arch)} && electron-builder --mac --${npm_config_arch:-$(node -p process.arch)} --publish never",
-    "test:export": "node test/export.test.js"
+    "test:export": "node test/export.test.js",
+    "test:encoders": "node test/encoders.test.js"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0",

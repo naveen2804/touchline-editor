@@ -255,11 +255,20 @@
           </select>
         </label>
       </div>
+      <label>Encoder
+        <select id="expEnc">
+          <option value="auto">Auto — use the graphics card if available (fastest)</option>
+          <option value="cpu">CPU only (slower, most compatible)</option>
+        </select>
+      </label>
+      <p class="enc-note" id="expEncNote"></p>
       <p class="muted" id="expSummary"></p>
+      <p class="exp-warn" id="expWarn" hidden></p>
     </div>
     <div id="expProgress" hidden>
       <div class="bar"><div id="expBar"></div></div>
       <div class="exp-pct"><span id="expPct">0%</span><span class="muted" id="expEta"></span></div>
+      <p class="muted" id="expUsing"></p>
     </div>
     <div id="expDone" hidden>
       <div class="done-big">Export finished</div>

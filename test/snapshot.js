@@ -93,6 +93,9 @@ module.exports = function (win) {
       // export
       await js(`TS.exporter.open()`);
       await sleep(800);
+      await sleep(1500);
+      log.push('export dialog: ' + (await js(`document.getElementById('expEncNote').textContent + ' | warn: ' + (document.getElementById('expWarn').hidden ? '-' : document.getElementById('expWarn').textContent)`)));
+      await shot('5a-export-dialog.png');
       await js(`document.getElementById('expRes').value='720'; TS.exporter.run()`);
       await sleep(1500);
       await shot('5-exporting.png');
@@ -101,6 +104,7 @@ module.exports = function (win) {
         if (!(await js(`!!TS.exporter.running`))) break;
       }
       log.push('export: ' + (await js(`TS.exporter.lastOutput || document.querySelector('.toast.error')?.textContent || 'unknown'`)));
+      log.push('export info: ' + (await js(`document.getElementById('expDonePath').textContent.replace(/\\n/g,' | ')`)));
       await shot('6-export-done.png');
       await js(`TS.closeModal('expModal')`);
 

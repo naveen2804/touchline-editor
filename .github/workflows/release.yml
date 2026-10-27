@@ -83,6 +83,10 @@ jobs:
         if: matrix.native
         run: npm run test:export
 
+      - name: Check GPU encoder options against bundled FFmpeg
+        if: matrix.native
+        run: npm run test:encoders
+
       - name: Keep only this platform's ffprobe
         run: node scripts/prune-ffprobe.js ${{ matrix.platform }} ${{ matrix.arch }}
 

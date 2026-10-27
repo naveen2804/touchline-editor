@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const { pathToFileURL } = require('url');
 
 const inv = (ch, ...a) => ipcRenderer.invoke(ch, ...a);
-const CHANNELS = ['hotkey', 'task', 'export-progress', 'rec-status'];
+const CHANNELS = ['hotkey', 'task', 'export-progress', 'export-encoder', 'rec-status'];
 
 contextBridge.exposeInMainWorld('api', {
   platform: process.platform,
@@ -28,10 +28,12 @@ contextBridge.exposeInMainWorld('api', {
   importMedia: paths => inv('import-media', paths),
   extractAudio: p => inv('extract-audio', p),
   exists: paths => inv('exists', paths),
+  probe: p => inv('probe', p),
 
   exportPath: name => inv('export-path', name),
   exportDialog: current => inv('export-dialog', current),
   exportStart: spec => inv('export-start', spec),
+  encoders: () => inv('encoders'),
   exportCancel: () => inv('export-cancel'),
 
   autosave: json => inv('autosave', json),

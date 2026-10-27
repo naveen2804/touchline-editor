@@ -127,6 +127,13 @@ After each recording the app checks the frame rate your PC actually achieved. If
   - **Balanced** (CRF 19): the default
   - **High** (CRF 17, slower preset): best quality, takes longer to export
 - Exporting above your recording's resolution or frame rate doesn't add detail or smoothness. The exception is a 1440p upload, which can still look better on YouTube.
+- **Fast exports on your graphics card.** Export uses your GPU's video encoder automatically when one is available:
+  - **Windows:** NVIDIA (NVENC), Intel (Quick Sync), AMD (AMF), or the built-in Media Foundation encoder
+  - **Mac:** VideoToolbox
+
+  This is typically 5–10× faster than the CPU, and the dialog shows which one it will use. If the GPU encoder fails partway, the export restarts on the CPU automatically. Choose **CPU only** in the dialog if a GPU export ever looks wrong.
+
+  The dialog also warns when your settings are higher than your clips, for example 60 fps from 30 fps footage. That costs export time without improving the video.
 
 ### Editor shortcuts
 
