@@ -1,0 +1,109 @@
+name: Build installers
+
+# Push a tag like v1.2.0 to build Windows + macOS installers and publish a GitHub Release.
+# "Run workflow" on the Actions tab builds them too (downloadable as workflow artifacts).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows (x64)
+            os: windows-latest
+            platform: win32
+            arch: x64
+            native: true
+            builder: --win --x64
+            artifact: dist/*.exe
+          - label: macOS (Apple Silicon)
+            os: macos-latest
+            platform: darwin
+            arch: arm64
+            native: true
+            builder: --mac --arm64
+            artifact: dist/*.dmg
+          - label: macOS (Intel)
+            os: macos-latest
+            platform: darwin
+            arch: x64
+            native: false
+            builder: --mac --x64
+            artifact: dist/*.dmg
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (${{ matrix.platform }}/${{ matrix.arch }} FFmpeg)
+        run: npm ci --no-audit --no-fund
+        env:
+          npm_config_arch: ${{ matrix.arch }}
+
+      - name: Self-test bundled FFmpeg (export pipeline)
+        if: matrix.native
+        run: npm run test:export
+
+      - name: Keep only this platform's ffprobe
+        run: node scripts/prune-ffprobe.js ${{ matrix.platform }} ${{ matrix.arch }}
+
+      - name: Build installer
+        run: npx electron-builder ${{ matrix.builder }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ matrix.artifact }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - run: ls -la installers
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Touchline Studio ${{ github.ref_name }}
+          make_latest: 'true'
+          files: installers/*
+          body: |
+            ## Download
+
+            | Your computer | Installer |
+            |---|---|
+            | **Windows 10 / 11** | `Touchline-Studio-Windows-Setup.exe` |
+            | **Mac with Apple Silicon** (M1–M4, 2020 and later) | `Touchline-Studio-Mac-arm64.dmg` |
+            | **Mac with Intel** | `Touchline-Studio-Mac-x64.dmg` |
+
+            Not sure which Mac you have? Apple menu → **About This Mac**: "Chip: Apple M…" means Apple Silicon.
+
+            Everything is bundled (app runtime + FFmpeg). Nothing else needs to be installed.
+
+            ### First launch
+            The installers aren't signed with a paid Microsoft/Apple certificate, so the OS asks once:
+            - **Windows:** "Windows protected your PC" → **More info** → **Run anyway**.
+            - **macOS:** open the .dmg and drag Touchline Studio into Applications. Open it; if macOS says it can't verify the developer, go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+              Then allow Camera, Microphone and **Screen & System Audio Recording** when asked.

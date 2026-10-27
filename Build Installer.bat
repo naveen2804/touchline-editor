@@ -19,7 +19,7 @@ if not exist "node_modules\electron\dist\electron.exe" (
 echo.
 echo Building the Windows installer (a few minutes)...
 echo.
-call npm run dist
+call npm run dist:win
 if errorlevel 1 (
   echo.
   echo Build failed. If the error mentions "symbolic link", turn on Windows
@@ -29,6 +29,6 @@ if errorlevel 1 (
 )
 
 echo.
-echo Done! "Touchline Studio Setup 1.0.0.exe" is in the dist folder.
+echo Done! "Touchline-Studio-Windows-Setup.exe" is in the dist folder.
 explorer dist
 pause

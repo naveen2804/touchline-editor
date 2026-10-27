@@ -1,6 +1,6 @@
 # Touchline Studio
 
-A personal Windows app for recording and editing football analysis videos.
+A personal Windows & macOS app for recording and editing football analysis videos.
 
 - **Record:** your camera plus the Lineup Builder window. Switch live between full-screen face cam and screen with a facecam corner; the facecam animates smoothly between the two.
 - **Edit:** import your recordings or any clip from your PC, then reorder, trim and split them, and add transitions. Detach the audio, re-record your voice, add background music, and export an MP4 ready for YouTube.
@@ -9,14 +9,56 @@ Everything runs locally. FFmpeg is bundled, there are no accounts and no waterma
 
 ---
 
-## Setup (once)
+## Download & install
 
-1. Install **Node.js LTS** from <https://nodejs.org> (default options).
-2. Unzip this folder somewhere permanent, e.g. `Documents\touchline-studio`.
-3. Double-click **`Start Touchline Studio.bat`**.
-   The first run downloads Electron and FFmpeg, which takes a few minutes. After that it opens straight away.
+### ⬇️ [**Get the latest installers →**](https://github.com/naveen2804/touchline-editor/releases/latest)
 
-**Want a normal app with a Start-menu icon?** Double-click **`Build Installer.bat`**. Then run `dist\Touchline Studio Setup 1.0.0.exe`, which gives you a desktop shortcut. You can delete the source folder afterwards.
+| Your computer | Direct download |
+|---|---|
+| **Windows 10 / 11** | [Touchline-Studio-Windows-Setup.exe](https://github.com/naveen2804/touchline-editor/releases/latest/download/Touchline-Studio-Windows-Setup.exe) |
+| **Mac with Apple Silicon** (M1–M4) | [Touchline-Studio-Mac-arm64.dmg](https://github.com/naveen2804/touchline-editor/releases/latest/download/Touchline-Studio-Mac-arm64.dmg) |
+| **Mac with Intel** | [Touchline-Studio-Mac-x64.dmg](https://github.com/naveen2804/touchline-editor/releases/latest/download/Touchline-Studio-Mac-x64.dmg) |
+
+The installers bundle everything the app needs, including its runtime and FFmpeg. You don't need Node.js or anything else installed.
+
+The installers aren't signed with a paid Microsoft or Apple certificate, so on first launch the operating system asks you to confirm once.
+
+**Windows**
+1. Run the setup file.
+2. If you see "Windows protected your PC", click **More info**, then **Run anyway**.
+3. Choose the install folder. The installer adds Start-menu and desktop shortcuts.
+
+**macOS**
+1. Open the `.dmg` and drag **Touchline Studio** into **Applications**.
+2. Open the app. If macOS says it can't verify the developer, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
+3. Allow **Camera** and **Microphone** when asked.
+4. The first time you choose a window to record, turn on Touchline Studio under **Screen & System Audio Recording** in System Settings, then reopen the app.
+
+Not sure which Mac you have? Apple menu → **About This Mac**. If it says "Chip: Apple M…", it's Apple Silicon.
+
+### Releasing a new version
+
+GitHub builds all three installers automatically. To publish a new version:
+
+1. Bump `version` in `package.json`.
+2. Push a tag:
+   ```
+   git tag v1.2.0
+   git push origin v1.2.0
+   ```
+
+About 15 minutes later the new version appears on the [Releases page](https://github.com/naveen2804/touchline-editor/releases). The workflow is in `.github/workflows/release.yml`. It also runs the FFmpeg export tests on real Windows and Mac machines before packaging.
+
+### Running from source (optional)
+
+You need Node.js LTS for this.
+
+- **Windows:** double-click `Start Touchline Studio.bat`.
+- **Mac or Windows terminal:** run `npm install`, then `npm start`.
+
+To build an installer locally:
+- **Windows:** `Build Installer.bat`
+- **Mac:** `npm run dist:mac`
 
 Files are saved under `Documents\Touchline Studio\`:
 
@@ -35,12 +77,12 @@ Your current project also autosaves, so closing the app never loses work.
 ## Recording a video
 
 1. **Sources → Choose…** and pick the browser window with Lineup Builder. A window is better than a whole screen, because notifications and other apps stay out of the shot.
-2. Pick your camera and mic. Tick **Record computer sound too** if you'll play clips during the recording.
+2. Pick your camera and mic. Tick **Record computer sound too** if you'll play clips during the recording. This option is Windows only.
 3. Set the facecam corner, size, shape (rounded or circle) and border colour.
 4. Press **Start recording**. A small floating bar appears at the top of your screen. It isn't captured in the recording.
 5. Switch over to Lineup Builder and talk. Change the layout at any time, without coming back to the app:
 
-| Shortcut (works from any app) | Action |
+| Shortcut (works from any app; on Mac use ⌘ ⌥ instead of Ctrl Alt) | Action |
 |---|---|
 | `Ctrl` + `Alt` + `1` | Face cam full screen |
 | `Ctrl` + `Alt` + `2` | Lineup Builder + facecam in the corner |

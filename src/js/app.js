@@ -138,6 +138,11 @@
 
   document.addEventListener('DOMContentLoaded', async () => {
     TS.hydrateIcons();
+    document.body.classList.toggle('mac', TS.isMac);
+    TS.platformKeys();
+    if (TS.isMac) {
+      TS.$$('[title]').forEach(el => { el.title = el.title.replace(/Ctrl\+/g, '⌘').replace(/Alt\+/g, '⌥'); });
+    }
     TS.library.init();
     TS.timeline.init();
     TS.player.init();

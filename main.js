@@ -1,6 +1,7 @@
 'use strict';
 const {
-  app, BrowserWindow, ipcMain, dialog, desktopCapturer, session, globalShortcut, shell, screen
+  app, BrowserWindow, ipcMain, dialog, desktopCapturer, session, globalShortcut, shell, screen,
+  Menu, systemPreferences
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -23,6 +24,7 @@ const unpacked = p => (p ? p.replace(/app\.asar([\\/])/, 'app.asar.unpacked$1') 
 const FFMPEG = unpacked(require('ffmpeg-static'));
 const FFPROBE = unpacked(require('ffprobe-static').path);
 const ICON = path.join(__dirname, 'build', 'icon.png');
+const IS_MAC = process.platform === 'darwin';
 const PRELOAD = path.join(__dirname, 'preload.js');
 
 let mainWin = null;
@@ -190,7 +192,7 @@ function createMain() {
     minHeight: 720,
     backgroundColor: '#0b0e13',
     title: 'Touchline Studio',
-    icon: ICON,
+    icon: fs.existsSync(ICON) ? ICON : undefined,
     autoHideMenuBar: true,
     show: false,
     webPreferences: {
@@ -200,7 +202,7 @@ function createMain() {
       backgroundThrottling: false
     }
   });
-  mainWin.removeMenu();
+  if (!IS_MAC) mainWin.removeMenu();
   mainWin.loadFile(path.join(__dirname, 'src', 'index.html'));
   mainWin.once('ready-to-show', () => {
     if (process.env.TS_SNAPSHOT) return;
@@ -255,6 +257,26 @@ function showMini(show) {
 
 function registerIpc() {
   ipcMain.handle('paths', () => DIRS);
+
+  // macOS privacy permissions (camera / mic prompt; screen recording must be granted in System Settings)
+  ipcMain.handle('media-access', async () => {
+    if (!IS_MAC) return { camera: 'granted', microphone: 'granted', screen: 'granted' };
+    for (const kind of ['camera', 'microphone']) {
+      if (systemPreferences.getMediaAccessStatus(kind) === 'not-determined') {
+        try { await systemPreferences.askForMediaAccess(kind); } catch {}
+      }
+    }
+    return {
+      camera: systemPreferences.getMediaAccessStatus('camera'),
+      microphone: systemPreferences.getMediaAccessStatus('microphone'),
+      screen: systemPreferences.getMediaAccessStatus('screen')
+    };
+  });
+  ipcMain.handle('open-privacy', (e, pane) => {
+    if (!IS_MAC) return;
+    const anchors = { screen: 'Privacy_ScreenCapture', camera: 'Privacy_Camera', microphone: 'Privacy_Microphone' };
+    shell.openExternal(`x-apple.systempreferences:com.apple.preference.security?${anchors[pane] || 'Privacy'}`);
+  });
 
   ipcMain.handle('get-sources', async () => {
     const sources = await desktopCapturer.getSources({
@@ -506,6 +528,15 @@ app.whenReady().then(() => {
     }
   });
 
+  if (IS_MAC) {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      { role: 'appMenu' },
+      { role: 'fileMenu' },
+      { role: 'editMenu' },
+      { label: 'View', submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'togglefullscreen' }] },
+      { role: 'windowMenu' }
+    ]));
+  }
   registerIpc();
   createMain();
 
@@ -513,4 +544,5 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => app.quit());
+app.on('activate', () => { if (!mainWin && app.isReady()) createMain(); });
 app.on('will-quit', () => globalShortcut.unregisterAll());

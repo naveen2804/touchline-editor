@@ -24,7 +24,7 @@
 [hidden] { display: none !important; }
 html, body {
   margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden;
-  font: 13px/1.4 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   user-select: none; -webkit-font-smoothing: antialiased;
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -414,3 +414,7 @@ body.dropping #dropOverlay { display: grid; }
 .quality-grid .mini-label { margin: 0; }
 .quality-grid .seg { justify-self: start; }
 #qualityEst { color: var(--text); margin-top: 10px; }
+
+.mac-perm { grid-column: 1 / -1; background: var(--panel2); border: 1px solid var(--line2); border-radius: 12px; padding: 18px 20px; line-height: 1.6; }
+.mac-perm p { margin: 6px 0; color: var(--muted); }
+.mac-perm ol { margin: 8px 0 14px; padding-left: 20px; }

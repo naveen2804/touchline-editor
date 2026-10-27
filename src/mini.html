@@ -42,6 +42,9 @@
 <script>
   const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   document.querySelectorAll('button').forEach(b => (b.onclick = () => window.api.miniCmd(b.dataset.c)));
+  if (window.api.platform === 'darwin') {
+    document.querySelectorAll('[title]').forEach(el => { el.title = el.title.replace('Ctrl+Alt+', '⌘⌥'); });
+  }
   window.api.on('rec-status', s => {
     document.getElementById('t').textContent = fmt(s.elapsed || 0);
     document.getElementById('bar').classList.toggle('paused', !!s.paused);

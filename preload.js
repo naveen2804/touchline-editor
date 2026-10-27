@@ -6,7 +6,10 @@ const inv = (ch, ...a) => ipcRenderer.invoke(ch, ...a);
 const CHANNELS = ['hotkey', 'task', 'export-progress', 'rec-status'];
 
 contextBridge.exposeInMainWorld('api', {
+  platform: process.platform,
   paths: () => inv('paths'),
+  mediaAccess: () => inv('media-access'),
+  openPrivacy: pane => inv('open-privacy', pane),
   fileUrl: p => (p ? pathToFileURL(p).href : ''),
   pathForFile: f => {
     try { return webUtils.getPathForFile(f); } catch { return null; }

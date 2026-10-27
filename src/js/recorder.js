@@ -135,6 +135,11 @@ class FrameSource {
     bindCheck('#optMini', 'mini');
     bindCheck('#optAutoAdd', 'autoAdd');
     bindCheck('#optNoise', 'noise', () => this.startMic());
+    if (!TS.isMac && api.platform !== 'win32') this.opts.sysAudio = false;
+    if (TS.isMac) {
+      this.opts.sysAudio = false;
+      TS.$('#optSysAudio').closest('label').hidden = true;
+    }
     bindCheck('#optSysAudio', 'sysAudio', () => {
       if (this.opts.sourceId) this.startScreen(this.opts.sourceId, this.opts.sourceName, this.opts.sourceThumb);
     });
@@ -194,6 +199,14 @@ class FrameSource {
     if (this.active) return;
     this.active = true;
     this.startLoop();
+    if (TS.isMac && !this.permsAsked) {
+      const acc = await api.mediaAccess();
+      const denied = ['camera', 'microphone'].filter(k => acc[k] === 'denied' || acc[k] === 'restricted');
+      if (denied.length) {
+        TS.toast(`macOS is blocking the ${denied.join(' and ')}. Allow Touchline Studio in System Settings → Privacy & Security.`, 'error', 9000);
+        api.openPrivacy(denied[0]);
+      }
+    }
     await this.refreshDevices(!this.permsAsked);
     this.permsAsked = true;
     await Promise.all([this.startCam(), this.startMic()]);
@@ -300,6 +313,22 @@ class FrameSource {
     if (!refreshOnly) {
       grid.innerHTML = '<div class="muted">Loading…</div>';
       TS.openModal('srcModal');
+    }
+    if (TS.isMac) {
+      const acc = await api.mediaAccess();
+      if (acc.screen !== 'granted') {
+        grid.innerHTML = `<div class="mac-perm">
+          <b>Allow screen recording</b>
+          <p>macOS needs your permission before Touchline Studio can capture a window.</p>
+          <ol><li>Click <b>Open System Settings</b> below.</li>
+          <li>Under <b>Screen &amp; System Audio Recording</b>, turn on <b>Touchline Studio</b>.</li>
+          <li>Quit and reopen Touchline Studio when macOS asks.</li></ol>
+          <button class="primary" id="openScreenPerm">Open System Settings</button></div>`;
+        TS.$('#openScreenPerm').onclick = () => api.openPrivacy('screen');
+        // Triggers the system prompt and adds the app to the list in System Settings.
+        api.getSources().catch(() => {});
+        return;
+      }
     }
     const sources = await api.getSources();
     const card = s => `

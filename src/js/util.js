@@ -155,3 +155,14 @@ TS.TRANSITIONS = [
   { id: 'dissolve', label: 'Dissolve' }
 ];
 TS.transLabel = id => (TS.TRANSITIONS.find(t => t.id === id) || { label: id }).label;
+
+/* ---------------------------------------------------- platform labels */
+TS.isMac = window.api && window.api.platform === 'darwin';
+/** On macOS show ⌘ / ⌥ instead of Ctrl / Alt in shortcut hints. */
+TS.platformKeys = (root = document) => {
+  if (!TS.isMac) return;
+  TS.$$('kbd', root).forEach(k => {
+    if (k.textContent === 'Ctrl') k.textContent = '⌘';
+    else if (k.textContent === 'Alt') k.textContent = '⌥';
+  });
+};

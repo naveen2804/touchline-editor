@@ -177,6 +177,7 @@ TS.inspector = {
           <kbd>Ctrl</kbd>+<kbd>Z</kbd> undo · <kbd>Ctrl</kbd>+<kbd>Y</kbd> redo · <kbd>Ctrl</kbd>+<kbd>scroll</kbd> zoom
         </p>
       </div>`;
+    TS.platformKeys(this.root);
   },
 
   mutate(fn, key) {

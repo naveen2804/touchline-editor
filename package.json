@@ -1,13 +1,14 @@
 {
   "name": "touchline-studio",
   "productName": "Touchline Studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Record and edit football tactical-analysis videos: facecam + screen recorder and a simple clip editor.",
   "author": "Naveen Narayan",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis",
+    "dist:win": "node scripts/prune-ffprobe.js win32 x64 && electron-builder --win --x64 --publish never",
+    "dist:mac": "node scripts/prune-ffprobe.js darwin ${npm_config_arch:-$(node -p process.arch)} && electron-builder --mac --${npm_config_arch:-$(node -p process.arch)} --publish never",
     "test:export": "node test/export.test.js"
   },
   "dependencies": {
@@ -21,28 +22,83 @@
   "build": {
     "appId": "com.naveen.touchlinestudio",
     "productName": "Touchline Studio",
-    "directories": { "output": "dist" },
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "**/*",
       "!test/**",
       "!dist/**",
-      "!node_modules/ffprobe-static/bin/darwin/**",
-      "!node_modules/ffprobe-static/bin/linux/**",
-      "!node_modules/ffprobe-static/bin/win32/ia32/**"
+      "!scripts/**",
+      "!.github/**",
+      "!*.bat",
+      "!README.md",
+      "build/icon.png"
     ],
     "asarUnpack": [
       "node_modules/ffmpeg-static/**",
       "node_modules/ffprobe-static/**"
     ],
     "win": {
-      "target": ["nsis"],
-      "icon": "build/icon.png"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Touchline-Studio-Windows-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Touchline Studio"
+      "createStartMenuShortcut": true,
+      "shortcutName": "Touchline Studio",
+      "runAfterFinish": true
+    },
+    "afterPack": "scripts/afterPack.js",
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.video",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "artifactName": "Touchline-Studio-Mac-${arch}.${ext}",
+      "extendInfo": {
+        "NSCameraUsageDescription": "Touchline Studio uses your camera for the face cam in your recordings.",
+        "NSMicrophoneUsageDescription": "Touchline Studio records your voice for commentary and voiceovers.",
+        "NSScreenCaptureUsageDescription": "Touchline Studio records the window or screen you choose (e.g. Lineup Builder)."
+      }
+    },
+    "dmg": {
+      "title": "Touchline Studio",
+      "contents": [
+        {
+          "x": 150,
+          "y": 200
+        },
+        {
+          "x": 450,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 600,
+        "height": 400
+      }
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/naveen2804/touchline-editor.git"
   }
 }
