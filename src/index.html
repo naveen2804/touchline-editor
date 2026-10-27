@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' file: data: blob: mediastream:; img-src 'self' file: data: blob:; media-src 'self' file: data: blob: mediastream:; style-src 'self' file: 'unsafe-inline'; script-src 'self' file:">
+  <title>Touchline Studio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M8 6.5v11l9-5.5z" fill="#fff"/></svg></div>
+      Touchline Studio
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="record"><span class="tab-dot"></span>Record</button>
+      <button class="tab" data-tab="edit">Edit</button>
+    </nav>
+    <div class="top-actions">
+      <input id="projectName" spellcheck="false" title="Project name">
+      <button id="btnNew" class="ghost">New</button>
+      <button id="btnOpen" class="ghost">Open</button>
+      <button id="btnSave" class="ghost" title="Ctrl+S">Save</button>
+      <button id="btnExport" class="primary" title="Ctrl+E"></button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================================================= RECORD -->
+    <section class="page active" id="page-record">
+      <div class="rec-main">
+        <div class="stage-wrap">
+          <div class="stage">
+            <canvas id="recCanvas" width="1920" height="1080"></canvas>
+            <div class="countdown" id="recCountdown"></div>
+            <div class="rec-badge" id="recBadge"><span class="dot"></span><span id="recTime">0:00</span></div>
+          </div>
+        </div>
+        <div class="rec-controls">
+          <div class="seg layout-seg" id="layoutSeg">
+            <button data-layout="cam"><i data-icon="camera"></i>Face cam<kbd>1</kbd></button>
+            <button data-layout="split"><i data-icon="pip"></i>Screen + facecam<kbd>2</kbd></button>
+            <button data-layout="screen"><i data-icon="monitor"></i>Screen only<kbd>3</kbd></button>
+          </div>
+          <div class="rec-buttons">
+            <span class="rec-timer" id="recTimer">0:00</span>
+            <button id="btnPause" class="ghost" disabled><i data-icon="pause"></i><span>Pause</span></button>
+            <button id="btnRec" class="rec-btn"><span class="rec-dot"></span><span id="btnRecLabel">Start recording</span></button>
+          </div>
+        </div>
+        <div class="hint">
+          While recording, from any app: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>/<kbd>2</kbd>/<kbd>3</kbd> switch layout ·
+          <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>R</kbd> start/stop · <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>P</kbd> pause
+        </div>
+      </div>
+
+      <aside class="side panel">
+        <h3>Sources</h3>
+        <div class="source-pick">
+          <div class="source-thumb" id="srcThumb"><i data-icon="monitor"></i></div>
+          <div class="source-info">
+            <div class="source-name" id="srcName">No screen or window</div>
+            <div class="btn-row tight">
+              <button id="btnPickSource">Choose…</button>
+              <button id="btnClearSource" class="ghost" title="Stop screen capture">Clear</button>
+            </div>
+          </div>
+        </div>
+        <label>Camera<select id="camSelect"></select></label>
+        <label>Microphone<select id="micSelect"></select></label>
+        <div class="meter"><div id="micMeter"></div></div>
+        <label class="check"><input type="checkbox" id="optSysAudio"> Record computer sound too</label>
+        <label class="check"><input type="checkbox" id="optNoise"> Noise suppression on mic</label>
+
+        <h3>Facecam</h3>
+        <div class="row-split">
+          <div>
+            <div class="mini-label">Corner</div>
+            <div class="corner-grid" id="cornerGrid">
+              <button data-corner="tl"></button><button data-corner="tr"></button>
+              <button data-corner="bl"></button><button data-corner="br"></button>
+            </div>
+          </div>
+          <div class="grow">
+            <div class="mini-label">Size</div>
+            <div class="seg small" id="sizeSeg"><button data-size="S">S</button><button data-size="M">M</button><button data-size="L">L</button></div>
+            <div class="mini-label">Shape</div>
+            <div class="seg small" id="shapeSeg"><button data-shape="rounded">Rounded</button><button data-shape="circle">Circle</button></div>
+          </div>
+        </div>
+        <div class="row-split center">
+          <label class="check"><input type="checkbox" id="optMirror"> Mirror camera</label>
+          <label class="color-pick">Border <input type="color" id="optBorder"></label>
+        </div>
+
+        <h3>Recording quality</h3>
+        <div class="quality-grid">
+          <span class="mini-label">Resolution</span>
+          <div class="seg small" id="resSeg"><button data-res="1080">1080p</button><button data-res="1440">1440p</button></div>
+          <span class="mini-label">Frame rate</span>
+          <div class="seg small" id="fpsSeg"><button data-fps="30">30 fps</button><button data-fps="60">60 fps</button></div>
+          <span class="mini-label">Bitrate</span>
+          <div class="seg small" id="bitSeg"><button data-bit="standard">Standard</button><button data-bit="high">High</button><button data-bit="max">Max</button></div>
+        </div>
+        <p class="help" id="qualityEst"></p>
+        <p class="help">1440p makes Lineup Builder text sharper on YouTube. 60 fps is smoother but uses more CPU — drop to 30 if the recording stutters.</p>
+
+        <h3>Recording</h3>
+        <label class="check"><input type="checkbox" id="optCountdown"> 3-second countdown</label>
+        <label class="check"><input type="checkbox" id="optMini"> Floating control bar while recording</label>
+        <label class="check"><input type="checkbox" id="optAutoAdd"> Add each recording to the timeline</label>
+
+        <h3>This session</h3>
+        <div id="recList" class="rec-list"><div class="empty-note">Recordings you make appear here and in the Edit tab.</div></div>
+      </aside>
+    </section>
+
+    <!-- ================================================= EDIT -->
+    <section class="page" id="page-edit">
+      <div class="edit-top">
+        <aside class="bin panel" id="bin">
+          <div class="panel-head">
+            <h3>Media</h3>
+            <button id="btnImport" class="small"><i data-icon="import"></i>Import</button>
+          </div>
+          <div class="bin-list" id="binList"></div>
+          <div class="bin-drop">Drop video or audio files anywhere</div>
+        </aside>
+
+        <div class="viewer">
+          <div class="viewer-stage">
+            <canvas id="pvCanvas" width="1280" height="720"></canvas>
+            <div class="pv-empty" id="pvEmpty">
+              <div class="big">Your timeline is empty</div>
+              <div>Record something, or import clips and drag them onto the timeline.</div>
+            </div>
+          </div>
+          <div class="transport">
+            <div class="tc"><span id="pvTime">0:00.00</span><span class="muted"> / </span><span id="pvTotal" class="muted">0:00.00</span></div>
+            <div class="transport-btns">
+              <button class="icon ghost" id="pvStart" title="Go to start (Home)"><i data-icon="prev"></i></button>
+              <button class="icon ghost" id="pvBack" title="Back one frame (←)"><i data-icon="stepBack"></i></button>
+              <button class="icon play" id="pvPlay" title="Play / pause (Space)"><i data-icon="play"></i></button>
+              <button class="icon ghost" id="pvFwd" title="Forward one frame (→)"><i data-icon="stepFwd"></i></button>
+              <button class="icon ghost" id="pvEnd" title="Go to end (End)"><i data-icon="next"></i></button>
+            </div>
+            <div class="transport-right">
+              <button id="pvSplit" class="ghost" title="Split clip at playhead (S)"><i data-icon="scissors"></i>Split</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="inspector panel" id="inspector"></aside>
+      </div>
+
+      <div class="timeline panel">
+        <div class="tl-toolbar">
+          <button class="icon ghost" id="tlUndo" title="Undo (Ctrl+Z)"><i data-icon="undo"></i></button>
+          <button class="icon ghost" id="tlRedo" title="Redo (Ctrl+Y)"><i data-icon="redo"></i></button>
+          <span class="sep"></span>
+          <button class="ghost small" id="tlSplit"><i data-icon="scissors"></i>Split</button>
+          <button class="ghost small" id="tlDelete"><i data-icon="trash"></i>Delete</button>
+          <span class="tl-hint">Drag clips to reorder · drag clip edges to trim · click <b>+</b> between clips to add a transition</span>
+          <div class="tl-right">
+            <span class="muted">Length</span> <b id="tlTotal">0:00</b>
+            <span class="sep"></span>
+            <i data-icon="zoom" class="muted"></i>
+            <input type="range" id="tlZoom" min="4" max="240" step="1" value="40">
+            <button class="icon ghost" id="tlFit" title="Fit timeline"><i data-icon="fit"></i></button>
+          </div>
+        </div>
+        <div class="tl-body">
+          <div class="tl-heads">
+            <div class="tl-head ruler-h"></div>
+            <div class="tl-head h-video"><i data-icon="film"></i>Video</div>
+            <div class="tl-head h-audio"><i data-icon="volume"></i>Audio</div>
+            <div class="tl-head h-music"><i data-icon="music"></i>Music</div>
+          </div>
+          <div class="tl-scroll" id="tlScroll">
+            <div class="tl-canvas" id="tlCanvas">
+              <div class="tl-ruler" id="tlRuler"></div>
+              <div class="tl-lane lane-video" id="laneVideo"></div>
+              <div class="tl-lane lane-audio" id="laneAudio"></div>
+              <div class="tl-lane lane-music" id="laneMusic"></div>
+              <div class="tl-playhead" id="tlPlayhead"></div>
+              <div class="tl-insert" id="tlInsert"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================================================= MODALS -->
+<div class="modal" id="srcModal">
+  <div class="modal-card wide">
+    <div class="modal-head">
+      <h2>Choose what to capture</h2>
+      <button class="ghost small" id="srcRefresh">Refresh</button>
+    </div>
+    <p class="muted">Pick the browser window with Lineup Builder for the cleanest result, or a whole screen.</p>
+    <div class="src-grid" id="srcGrid"></div>
+    <div class="modal-actions"><button class="ghost" data-close>Cancel</button></div>
+  </div>
+</div>
+
+<div class="modal" id="voModal">
+  <div class="modal-card">
+    <div class="modal-head"><h2>Re-record voice</h2></div>
+    <p class="muted" id="voInfo"></p>
+    <div class="vo-stage">
+      <video id="voVideo" muted playsinline></video>
+      <div class="countdown" id="voCount"></div>
+      <div class="rec-badge" id="voBadge"><span class="dot"></span><span id="voTime">0:00</span></div>
+    </div>
+    <div class="row2">
+      <label>Microphone<select id="voMic"></select></label>
+      <label class="check pad-top"><input type="checkbox" id="voGuide"> Hear the original audio (wear headphones)</label>
+    </div>
+    <div class="meter"><div id="voMeter"></div></div>
+    <p class="vo-status" id="voStatus"></p>
+    <div class="modal-actions">
+      <button class="ghost" id="voClose">Close</button>
+      <button class="rec-btn" id="voRec"><span class="rec-dot"></span><span id="voRecLabel">Record</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="expModal">
+  <div class="modal-card">
+    <div class="modal-head"><h2>Export video</h2></div>
+    <div id="expForm">
+      <label>Save to
+        <div class="file-row"><input id="expPath" readonly><button id="expBrowse">Change…</button></div>
+      </label>
+      <div class="row3">
+        <label>Resolution
+          <select id="expRes">
+            <option value="720">720p</option>
+            <option value="1080">1080p (YouTube HD)</option>
+            <option value="1440">1440p</option>
+            <option value="2160">4K</option>
+          </select>
+        </label>
+        <label>Frame rate
+          <select id="expFps"><option value="30">30 fps</option><option value="60">60 fps</option></select>
+        </label>
+        <label>Quality
+          <select id="expQ">
+            <option value="fast">Fast (smaller file)</option>
+            <option value="balanced">Balanced</option>
+            <option value="high">High (slower)</option>
+          </select>
+        </label>
+      </div>
+      <p class="muted" id="expSummary"></p>
+    </div>
+    <div id="expProgress" hidden>
+      <div class="bar"><div id="expBar"></div></div>
+      <div class="exp-pct"><span id="expPct">0%</span><span class="muted" id="expEta"></span></div>
+    </div>
+    <div id="expDone" hidden>
+      <div class="done-big">Export finished</div>
+      <p class="muted" id="expDonePath"></p>
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" id="expCancel">Cancel</button>
+      <button class="ghost" id="expReveal" hidden><i data-icon="folder"></i>Show in folder</button>
+      <button class="primary" id="expGo"><i data-icon="export"></i>Export MP4</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="taskBar" hidden><div class="spinner"></div><span id="taskLabel"></span><div class="task-prog"><div id="taskProg"></div></div></div>
+<div id="dropOverlay"><div>Drop to import</div></div>
+
+<script src="../shared/timing.js"></script>
+<script src="js/util.js"></script>
+<script src="js/state.js"></script>
+<script src="js/transitions.js"></script>
+<script src="js/recorder.js"></script>
+<script src="js/library.js"></script>
+<script src="js/player.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/inspector.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/voiceover.js"></script>
+<script src="js/exporter.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

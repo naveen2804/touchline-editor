@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
+<title>Touchline Studio Mini</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; font: 12px "Segoe UI", system-ui, sans-serif; color: #e7ecf3; user-select: none; }
+  .bar {
+    margin: 4px; height: 50px; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px;
+    background: rgba(14, 18, 24, .94); border: 1px solid #2d3747; border-radius: 26px; -webkit-app-region: drag;
+    box-shadow: 0 6px 20px rgba(0,0,0,.45);
+  }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ff4b5c; animation: b 1s infinite; }
+  .paused .dot { animation: none; background: #f5b84b; }
+  @keyframes b { 50% { opacity: .25; } }
+  #t { font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; min-width: 50px; margin-left: 4px; }
+  .sep { width: 1px; height: 22px; background: #2d3747; margin: 0 4px; }
+  button {
+    -webkit-app-region: no-drag; font: inherit; color: #aab6c8; background: transparent; border: 1px solid transparent;
+    border-radius: 16px; padding: 6px 10px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+  }
+  button:hover { background: #1d2330; color: #fff; }
+  button.on { background: rgba(108,171,221,.16); color: #6cabdd; border-color: rgba(108,171,221,.4); }
+  button.stop { background: #ff4b5c; color: #fff; font-weight: 700; }
+  button.stop:hover { background: #ff6371; }
+  .sq { width: 9px; height: 9px; background: #fff; border-radius: 2px; }
+  svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+<div class="bar" id="bar">
+  <span class="dot"></span><span id="t">0:00</span>
+  <span class="sep"></span>
+  <button data-c="layout-cam" data-l="cam" title="Face cam (Ctrl+Alt+1)">Face</button>
+  <button data-c="layout-split" data-l="split" title="Screen + facecam (Ctrl+Alt+2)">Screen + Face</button>
+  <button data-c="layout-screen" data-l="screen" title="Screen only (Ctrl+Alt+3)">Screen</button>
+  <span class="sep"></span>
+  <button data-c="pause" id="pz" title="Pause (Ctrl+Alt+P)">Pause</button>
+  <button data-c="toggle-rec" class="stop" title="Stop (Ctrl+Alt+R)"><span class="sq"></span>Stop</button>
+</div>
+<script>
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  document.querySelectorAll('button').forEach(b => (b.onclick = () => window.api.miniCmd(b.dataset.c)));
+  window.api.on('rec-status', s => {
+    document.getElementById('t').textContent = fmt(s.elapsed || 0);
+    document.getElementById('bar').classList.toggle('paused', !!s.paused);
+    document.getElementById('pz').textContent = s.paused ? 'Resume' : 'Pause';
+    document.querySelectorAll('[data-l]').forEach(b => b.classList.toggle('on', b.dataset.l === s.layout));
+  });
+</script>
+</body>
+</html>
