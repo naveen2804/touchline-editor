@@ -1,9 +1,11 @@
 name: Build installers
 
-# Push a tag like v1.2.0 to build Windows + macOS installers and publish a GitHub Release.
-# "Run workflow" on the Actions tab builds them too (downloadable as workflow artifacts).
+# Bump "version" in package.json and push to main → Windows + macOS installers are built
+# and published as GitHub Release v<version>. Pushes that don't change the version are skipped.
+# "Run workflow" on the Actions tab forces a rebuild of the current version.
 on:
   push:
+    branches: [main]
     tags: ['v*']
   workflow_dispatch:
 
@@ -11,8 +13,32 @@ permissions:
   contents: write
 
 jobs:
+  version:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      build: ${{ steps.v.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "branch" ] \
+             && gh release view "v$VERSION" -R "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "Release v$VERSION already exists — bump the version in package.json to publish a new one."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: ${{ matrix.label }}
+    needs: version
+    if: needs.version.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -73,8 +99,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [version, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -86,7 +111,9 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          name: Touchline Studio ${{ github.ref_name }}
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: Touchline Studio v${{ needs.version.outputs.version }}
           make_latest: 'true'
           files: installers/*
           body: |

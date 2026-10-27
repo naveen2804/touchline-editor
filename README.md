@@ -40,14 +40,12 @@ Not sure which Mac you have? Apple menu → **About This Mac**. If it says "Chip
 
 GitHub builds all three installers automatically. To publish a new version:
 
-1. Bump `version` in `package.json`.
-2. Push a tag:
-   ```
-   git tag v1.2.0
-   git push origin v1.2.0
-   ```
+1. Bump `version` in `package.json` (e.g. `1.1.0` → `1.2.0`).
+2. Push to `main`.
 
-About 15 minutes later the new version appears on the [Releases page](https://github.com/naveen2804/touchline-editor/releases). The workflow is in `.github/workflows/release.yml`. It also runs the FFmpeg export tests on real Windows and Mac machines before packaging.
+About 15 minutes later the new version appears on the [Releases page](https://github.com/naveen2804/touchline-editor/releases). Pushes that don't change the version, like README edits, don't trigger a release. To rebuild the current version, open the **Actions** tab and use **Run workflow**.
+
+The workflow is in `.github/workflows/release.yml`. It also runs the FFmpeg export tests on real Windows and Mac machines before packaging.
 
 ### Running from source (optional)
 
