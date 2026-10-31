@@ -40,6 +40,9 @@ jobs:
     needs: version
     if: needs.version.outputs.build == 'true'
     runs-on: ${{ matrix.os }}
+    env:
+      MAC_SIGN_P12: ${{ secrets.MAC_SIGN_P12 }}
+      MAC_SIGN_PASSWORD: ${{ secrets.MAC_SIGN_PASSWORD }}
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +92,25 @@ jobs:
 
       - name: Keep only this platform's ffprobe
         run: node scripts/prune-ffprobe.js ${{ matrix.platform }} ${{ matrix.arch }}
+
+      # Optional: a self-signed certificate (repo secrets MAC_SIGN_P12 + MAC_SIGN_PASSWORD) gives the
+      # Mac app a stable signature, so macOS keeps its permissions across updates. See README.
+      - name: Import macOS signing certificate
+        if: matrix.platform == 'darwin' && env.MAC_SIGN_P12 != ''
+        run: |
+          KC="$RUNNER_TEMP/ts-sign.keychain-db"
+          echo "$MAC_SIGN_P12" | base64 --decode > "$RUNNER_TEMP/ts-sign.p12"
+          security create-keychain -p ci "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p ci "$KC"
+          security import "$RUNNER_TEMP/ts-sign.p12" -k "$KC" -P "$MAC_SIGN_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          HASH=$(security find-identity -p codesigning "$KC" | awk '/\)/ {print $2; exit}')
+          test -n "$HASH"
+          echo "TS_SIGN_IDENTITY=$HASH" >> "$GITHUB_ENV"
+          echo "TS_SIGN_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          rm "$RUNNER_TEMP/ts-sign.p12"
 
       - name: Build installer
         run: npx electron-builder ${{ matrix.builder }} --publish never

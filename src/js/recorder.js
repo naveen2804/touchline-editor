@@ -324,31 +324,15 @@ class FrameSource {
   };
 
   R.pickSource = async function (refreshOnly) {
+    if (api.macSystemPicker) {
+      // macOS 15+: Apple's own picker. It grants access to whatever you pick, so it needs no
+      // Screen Recording permission (that permission check is unreliable for unsigned apps anyway).
+      return this.startScreen('system', '', null);
+    }
     const grid = TS.$('#srcGrid');
     if (!refreshOnly) {
       grid.innerHTML = '<div class="muted">Loading…</div>';
       TS.openModal('srcModal');
-    }
-    if (TS.isMac) {
-      const acc = await api.mediaAccess();
-      if (acc.screen !== 'granted') {
-        grid.innerHTML = `<div class="mac-perm">
-          <b>Allow screen recording</b>
-          <p>macOS needs your permission before Touchline Studio can capture a window.</p>
-          <ol><li>Click <b>Open System Settings</b> below.</li>
-          <li>Under <b>Screen &amp; System Audio Recording</b>, turn on <b>Touchline Studio</b>.</li>
-          <li>Quit and reopen Touchline Studio when macOS asks.</li></ol>
-          <button class="primary" id="openScreenPerm">Open System Settings</button></div>`;
-        TS.$('#openScreenPerm').onclick = () => api.openPrivacy('screen');
-        // Triggers the system prompt and adds the app to the list in System Settings.
-        api.getSources().catch(() => {});
-        return;
-      }
-      if (api.macSystemPicker) {
-        // Apple's own picker (shows every window and screen) opens from getDisplayMedia
-        if (!refreshOnly) TS.closeModal('srcModal');
-        return this.startScreen('system', '', null);
-      }
     }
     const sources = await api.getSources();
     const card = s => `
@@ -360,7 +344,7 @@ class FrameSource {
     const wins = sources.filter(s => !s.isScreen);
     grid.innerHTML =
       `<div class="src-section">Windows</div>${wins.map(card).join('') || (TS.isMac
-        ? `<div class="mac-perm"><b>No windows listed</b><p>macOS is only sharing the screen with Touchline Studio. This usually means the Screen Recording permission belongs to an older copy of the app.</p>
+        ? `<div class="mac-perm"><b>No windows listed</b><p>macOS isn't letting Touchline Studio see other windows. Even if the switch already looks on, the permission can belong to an older copy of the app.</p>
             <ol><li>Open <b>System Settings → Privacy &amp; Security → Screen &amp; System Audio Recording</b>.</li>
             <li>Select <b>Touchline Studio</b> and remove it with the <b>−</b> button.</li>
             <li>Quit Touchline Studio (⌘Q), reopen it, click <b>Choose…</b> and allow access again.</li></ol>

@@ -33,7 +33,17 @@ The installers aren't signed with a paid Microsoft or Apple certificate, so on f
 2. Open the app. If macOS says it can't verify the developer, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
 3. Allow **Camera** and **Microphone** when asked.
 4. The first time you choose a window to record, turn on Touchline Studio under **Screen & System Audio Recording** in System Settings, then reopen the app.
-5. On macOS 15 (Sequoia) and later, **Choose…** opens Apple's own window picker, which lists all your windows; click Chrome or Lineup Builder there. On older macOS the app shows its own list. If that list only shows "Entire screen", remove Touchline Studio from **Screen & System Audio Recording** with the **−** button, then reopen the app and allow it again.
+5. On macOS 15 (Sequoia) and later, **Choose…** opens Apple's own window picker, which lists every window; click Chrome or Lineup Builder there. This picker doesn't need the Screen Recording permission. On older macOS the app shows its own list. If that list only shows "Entire screen", remove Touchline Studio from **Screen & System Audio Recording** with the **−** button, then reopen the app and allow it again.
+
+#### Optional: keep Mac permissions across updates
+
+By default the Mac app is "ad-hoc" signed, so macOS treats every new version as a new app and asks for camera and microphone access again. To give it a stable signature:
+1. Create a self-signed code-signing certificate and export it as a `.p12` file with a password.
+2. In the GitHub repo, go to **Settings → Secrets and variables → Actions** and add two secrets:
+   - `MAC_SIGN_P12`: the base64 of the `.p12` file
+   - `MAC_SIGN_PASSWORD`: its password
+
+From then on, builds are signed with that certificate and macOS keeps the app's permissions after updates.
 
 Not sure which Mac you have? Apple menu → **About This Mac**. If it says "Chip: Apple M…", it's Apple Silicon.
 
