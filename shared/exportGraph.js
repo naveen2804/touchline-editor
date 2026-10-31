@@ -5,6 +5,7 @@
  * chained with either concat (hard cut) or xfade/acrossfade (transition).
  */
 const { layout } = require('./timing');
+const fx = require('./audioFx');
 
 const XFADE = {
   fade: 'fade',
@@ -82,7 +83,8 @@ function buildExport({ clips, media, music, settings }) {
       lines.push(
         `${src}asetpts=PTS-STARTPTS,${AFMT}` +
           (delay > 0 ? `,adelay=delays=${Math.round(delay * 1000)}:all=1` : '') +
-          `,volume=${f3(vol)},apad,atrim=duration=${f3(d)},asetpts=PTS-STARTPTS[a${i}]`
+          [...fx.chain(a.fx), ...fx.gainChain(vol, a.fx)].map(x => ',' + x).join('') +
+          `,apad,atrim=duration=${f3(d)},asetpts=PTS-STARTPTS[a${i}]`
       );
     } else {
       lines.push(`anullsrc=r=48000:cl=stereo,atrim=duration=${f3(d)},${AFMT}[a${i}]`);

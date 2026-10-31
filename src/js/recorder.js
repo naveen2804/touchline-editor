@@ -58,7 +58,8 @@ class FrameSource {
     camId: '', micId: '', sysAudio: false, noise: true, corner: 'br', size: 'M', shape: 'rounded',
     mirror: true, border: '#6cabdd', countdown: true, mini: true, autoAdd: true, layout: 'split',
     sourceId: null, sourceName: '', sourceThumb: null,
-    res: '1080', fps: 30, bitrate: 'high'
+    res: '1080', fps: 30, bitrate: 'high',
+    fx: null, recVolume: 1
   };
 
   // Logical drawing space stays 1920x1080; the canvas is scaled to the chosen resolution.
@@ -153,6 +154,19 @@ class FrameSource {
     TS.$('#btnClearSource').onclick = () => this.clearSource();
     TS.$('#srcRefresh').onclick = () => this.pickSource(true);
     TS.$('#btnRec').onclick = () => this.toggleRecord();
+
+    // voice enhancement defaults for new recordings
+    const fxBox = TS.$('#recFx');
+    fxBox.innerHTML = TS.fxControlsHTML({ fx: this.opts.fx, volume: this.opts.recVolume }, { volLabel: 'Volume' });
+    TS.bindFx(TS.$('.fx', fxBox), () => ({ fx: this.opts.fx, volume: this.opts.recVolume }), patch => {
+      if (patch.fx) this.opts.fx = patch.fx;
+      if (patch.volume != null) this.opts.recVolume = patch.volume;
+      save();
+      this.micTestStale();
+    });
+    TS.$('#btnMicTest').onclick = () => this.micTest();
+    TS.$('#btnPlayOrig').onclick = () => this.playTest('original');
+    TS.$('#btnPlayFx').onclick = () => this.playTest('enhanced');
     TS.$('#btnPause').onclick = () => this.togglePause();
 
     api.on('hotkey', a => this.onHotkey(a));
@@ -668,7 +682,11 @@ class FrameSource {
       await this.queue;
       const q = this.recQuality || this.quality();
       const info = await api.recFinish(id, q.fps);
-      const m = { ...info, id: TS.uid(), name: info.name.replace(/\.mp4$/i, '') };
+      const m = {
+        ...info, id: TS.uid(), name: info.name.replace(/\.mp4$/i, ''),
+        defaultFx: TSAudioFx.isActive(this.opts.fx) ? TSAudioFx.norm(this.opts.fx) : null,
+        defaultVolume: this.opts.recVolume == null ? 1 : this.opts.recVolume
+      };
       TS.store.commit(p => {
         p.media.push(m);
         if (this.opts.autoAdd) p.clips.push(TS.makeClip(m));
@@ -687,6 +705,91 @@ class FrameSource {
     } catch (e) {
       TS.toast(`Saving the recording failed: ${e.message}`, 'error', 8000);
     }
+  };
+
+  /* ---------------------------------------------------------- mic test */
+  R.micTest = async function () {
+    if (this.testing) return;
+    if (this.recording || this.starting) return TS.toast('Finish the recording first.');
+    if (!this.micNode && !this.sysNode) return TS.toast('Pick a microphone first.', 'error');
+    this.ensureAudio();
+    this.stopTestAudio();
+    this.testing = true;
+    const btn = TS.$('#btnMicTest');
+    const label = TS.$('#micTestLabel');
+    const body = TS.$('#micTestBody');
+    btn.classList.add('recording');
+    TS.$('#micTestPlay').hidden = true;
+    body.innerHTML = '<b>Recording…</b> talk like you would in a video.';
+    try {
+      const mime = ['audio/webm;codecs=opus', 'audio/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+      const mr = new MediaRecorder(new MediaStream(this.dest.stream.getAudioTracks()), { mimeType: mime, audioBitsPerSecond: 192000 });
+      const chunks = [];
+      mr.ondataavailable = e => e.data.size && chunks.push(e.data);
+      const stopped = new Promise(res => (mr.onstop = res));
+      mr.start(250);
+      for (let k = 5; k > 0; k--) {
+        label.textContent = `Recording… ${k}`;
+        await new Promise(res => setTimeout(res, 1000));
+      }
+      mr.stop();
+      await stopped;
+      label.textContent = 'Checking…';
+      this.testBytes = new Uint8Array(await new Blob(chunks).arrayBuffer());
+      await this.analyseTest();
+    } catch (e) {
+      body.textContent = `Mic test failed: ${e.message}`;
+    } finally {
+      this.testing = false;
+      btn.classList.remove('recording');
+      label.textContent = 'Record again';
+    }
+  };
+
+  R.analyseTest = async function () {
+    const r = (this.testResult = await api.fxTest(this.testBytes, TSAudioFx.norm(this.opts.fx), this.opts.recVolume));
+    const verdict = ({ mean, max }, limited) => {
+      if (mean == null || mean < -60) return ['bad', 'No sound picked up — check the microphone selection'];
+      if (limited && mean > -12) return ['meh', 'Very loud — lower the Volume a little'];
+      if (!limited && max >= -0.3) return ['bad', 'Clipping — too loud. Lower your mic input level or move back a little'];
+      if (mean < -38) return ['bad', 'Very quiet — move closer or raise the Volume'];
+      if (mean < -28) return ['meh', 'A bit quiet — try raising the Volume or Auto level'];
+      return ['good', 'Good level'];
+    };
+    const [c1, t1] = verdict(r.original);
+    const [c2, t2] = verdict(r.enhanced, true); // limiter output: peaks near 0 dB are expected
+    const db = x => (x == null || !isFinite(x) ? '–' : `${x.toFixed(0)} dB`);
+    TS.$('#micTestBody').innerHTML =
+      `As recorded: <span class="${c1}">${t1}</span> <span class="muted">(avg ${db(r.original.mean)}, peak ${db(r.original.max)})</span><br>` +
+      `With enhancement: <span class="${c2}">${t2}</span> <span class="muted">(avg ${db(r.enhanced.mean)}, peak ${db(r.enhanced.max)})</span>`;
+    TS.$('#micTestPlay').hidden = false;
+  };
+
+  /** enhancement settings changed → re-process the existing test take */
+  R.micTestStale = function () {
+    if (!this.testBytes || this.testing) return;
+    clearTimeout(this._fxT);
+    this._fxT = setTimeout(() => { this.stopTestAudio(); this.analyseTest().catch(() => {}); }, 400);
+  };
+
+  R.playTest = function (which) {
+    if (!this.testResult) return;
+    const was = this.testPlaying;
+    this.stopTestAudio();
+    if (was === which) return;
+    const a = (this.testAudio = new Audio(api.fileUrl(this.testResult[which].path)));
+    this.testPlaying = which;
+    const btn = TS.$(which === 'original' ? '#btnPlayOrig' : '#btnPlayFx');
+    btn.textContent = '■ Stop';
+    a.onended = () => this.stopTestAudio();
+    a.play().catch(() => this.stopTestAudio());
+  };
+
+  R.stopTestAudio = function () {
+    if (this.testAudio) { this.testAudio.pause(); this.testAudio = null; }
+    this.testPlaying = null;
+    TS.$('#btnPlayOrig').textContent = '▶ As recorded';
+    TS.$('#btnPlayFx').textContent = '▶ With enhancement';
   };
 
   R.updateTimer = function () {

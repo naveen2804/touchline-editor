@@ -29,6 +29,21 @@ module.exports = function (win) {
       log.push('toasts at start: ' + (await js(`[...document.querySelectorAll('.toast')].map(t=>t.textContent).join(' | ')`)));
       await shot('1-record.png');
 
+      // mic test through the real recording audio chain (fake mic = tone)
+      await js(`TS.recorder.opts.fx = { preset: 'broadcast', noise: 2, rumble: true, level: true }; TS.recorder.opts.recVolume = 1.5; TS.recorder.micTest()`);
+      for (let i = 0; i < 30; i++) {
+        await sleep(500);
+        if (await js(`!document.getElementById('micTestPlay').hidden`)) break;
+      }
+      log.push('mic test: ' + (await js(`document.getElementById('micTestBody').textContent`)));
+      await js(`TS.recorder.playTest('enhanced')`);
+      await sleep(600);
+      log.push('mic test playing: ' + (await js(`TS.recorder.testPlaying + ' ' + document.getElementById('btnPlayFx').textContent`)));
+      await js(`TS.recorder.stopTestAudio(); document.getElementById('micTestBody').closest('.mic-test').scrollIntoView({block:'start'})`);
+      await sleep(300);
+      await shot('1b-mic-test.png');
+      await js(`document.querySelector('#page-record .side').scrollTop = 0`);
+
       // real recording through MediaRecorder -> IPC -> ffmpeg
       const [qr, qf, qb] = (process.env.TS_REC_Q || '1440,60,max').split(',');
       await js(`TS.recorder.setQuality('res','${qr}'); TS.recorder.setQuality('fps','${qf}'); TS.recorder.setQuality('bitrate','${qb}')`);
@@ -72,15 +87,31 @@ module.exports = function (win) {
       await sleep(1500);
       await js(`TS.editor.detach(TS.store.project.clips[1].id)`);
       await sleep(2500);
+      await js(`TS.store.commit(p => { p.clips[1].audio.fx = { preset: 'clear', noise: 2, compress: true }; p.clips[1].audio.volume = 2.5; })`);
+      for (let i = 0; i < 40; i++) {
+        await sleep(500);
+        if (await js(`Object.values(TS.fxCache).some(c => c.path)`)) break;
+      }
+      log.push('fx cache: ' + (await js(`JSON.stringify(Object.values(TS.fxCache).map(c => ({ ready: !!c.path, err: c.error || null })))`)));
+      log.push('recorded clip fx default: ' + (await js(`JSON.stringify(TS.store.project.clips[0].audio)`)));
       await js(`TS.timeline.fit(); TS.store.select(TS.store.project.clips[1].id);
         const L = TSTiming.layout(TS.store.project.clips); TS.player.setTime(L.starts[1] + 0.3);`);
       await sleep(2000);
       await shot('3-edit-transition.png');
+      await js(`document.getElementById('inspFx').scrollIntoView({block:'start'})`);
+      await sleep(500);
+      await shot('3b-inspector-fx.png');
       await js(`TS.store.select(null)`);
       await sleep(600);
       await shot('4-edit-project.png');
 
       // play a bit to exercise preview sync
+      // play the boosted + enhanced clip and measure that sound really comes out of Web Audio
+      await js(`(() => { const P = TS.player; P.ensureCtx(); const an = P.ac.createAnalyser(); an.fftSize = 2048; P.limiter.connect(an); window.__an = an; })();
+        TS.player.setTime(TSTiming.layout(TS.store.project.clips).starts[1] + 0.9); TS.player.play()`);
+      await sleep(1500);
+      log.push('preview audio level (boosted fx clip): ' + (await js(`(() => { const b = new Float32Array(2048); __an.getFloatTimeDomainData(b); let m = 0; for (const x of b) m = Math.max(m, Math.abs(x)); const e = TS.player.auds.get(TS.store.project.clips[1].id); return m.toFixed(3) + ' src=' + (e ? decodeURIComponent(e.src).split('/').slice(-2).join('/') : 'none') + ' gain=' + (e && e._gain ? e._gain.gain.value.toFixed(2) : '-'); })()`)));
+      await js(`TS.player.pause()`);
       await js(`TS.player.setTime(0); TS.player.play()`);
       await sleep(2500);
       log.push('playing t=' + (await js(`TS.player.t.toFixed(2)+' active='+JSON.stringify(TS.player.active)`)));

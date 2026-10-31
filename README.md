@@ -91,6 +91,12 @@ Your current project also autosaves, so closing the app never loses work.
 
 When you stop, the recording is saved as MP4 and dropped onto the timeline.
 
+### Test your audio
+
+Under the microphone in the Record tab, **Record 5 s** captures a short test take using exactly the same setup as a real recording (mic, noise suppression and computer sound). The app then tells you whether the level is too quiet, good, or clipping. You can play the test back **as recorded** and **with enhancement** to compare.
+
+The **Voice enhancement** settings under it apply to every new recording. Change a setting and the test take is processed again, so you can hear the difference straight away.
+
 ### Recording quality
 
 Set it in **Recording quality** on the right of the Record tab. An estimate of the file size per minute is shown under the controls.
@@ -122,6 +128,15 @@ After each recording the app checks the frame rate your PC actually achieved. If
   - swap in a different audio file,
   - or mute it.
 - **Re-record voice:** select a clip and click **Re-record voice**. The clip plays and your mic records for exactly its length. The new take replaces the clip's audio, shown as an orange track. Record again as many times as you like.
+- **Volume and voice enhancement:** select a clip to change how its sound comes out. The options are:
+  - **Volume:** 0–400%. A limiter stops boosted audio from distorting.
+  - **Voice tone:** Natural, Clear voice, Warm or Broadcast.
+  - **Background noise reduction:** Off, Light, Medium or Strong.
+  - **Remove rumble & hum.**
+  - **Even out loud and soft words** (a compressor).
+  - **Auto level:** keeps loudness consistent across the clip.
+
+  The preview plays the enhanced sound; for long clips it needs a moment to prepare the first time. **Compare with original** lets you switch between the two, and **Apply to all clips** copies a clip's settings to every clip.
 - **Background music:** click ♫ on an audio file in Media. It loops under the whole video and fades out at the end. Set its volume in the Project panel; 15–25% works well under speech.
 - **Export:** choose 720p, 1080p, 1440p or 4K at 30 or 60 fps. The output is an H.264/AAC MP4 with 192 kbps audio, ready to upload to YouTube. Quality options:
   - **Fast** (CRF 22): smaller files

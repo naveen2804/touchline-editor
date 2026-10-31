@@ -61,6 +61,13 @@ run('detached-audio-shifted', [
 ]);
 run('music-bed-60fps-1080', [clip('b', 0, 4, 'circleopen'), clip('a', 0, 4)], { mediaId: 's', volume: 0.3 }, { width: 1920, height: 1080, fps: 60 });
 run('tiny-clips-clamped-trans', [clip('a', 0, 0.3, 'fade'), clip('b', 0, 0.4, 'zoomin'), clip('c', 0, 0.5)]);
+const FX = { preset: 'broadcast', noise: 3, rumble: true, compress: true, level: true };
+run('voice-fx-boost', [
+  clip('a', 0, 3, 'fade', { mode: 'original', volume: 3, fx: FX }),
+  clip('b', 0, 3, 'none', { mode: 'file', mediaId: 's', offset: 0.2, volume: 0.5, fx: { preset: 'clear', noise: 1 } }),
+  clip('a', 1, 4, 'blur', { mode: 'original', volume: 1, fx: { preset: 'warm' } }),
+  clip('c', 0, 2)
+]);
 for (const t of Object.keys(XFADE)) run('transition-' + t, [clip('a', 0, 2, t), clip('b', 0, 2)]);
 
 fs.rmSync(dir, { recursive: true, force: true });

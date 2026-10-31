@@ -16,7 +16,11 @@ TS.makeClip = m => ({
   mediaId: m.id,
   in: 0,
   out: m.duration,
-  audio: { mode: m.hasAudio ? 'original' : 'none', mediaId: null, offset: 0, volume: 1 },
+  audio: {
+    mode: m.hasAudio ? 'original' : 'none', mediaId: null, offset: 0,
+    volume: m.defaultVolume == null ? 1 : m.defaultVolume,
+    fx: m.defaultFx ? { ...m.defaultFx } : null
+  },
   transition: { type: 'none', duration: 0.6 }
 });
 

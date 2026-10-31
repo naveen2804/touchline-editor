@@ -5,6 +5,7 @@ TS.voiceover = {
   init() {
     this.video = TS.$('#voVideo');
     TS.$('#voClose').onclick = () => this.close();
+    TS.$('#voPlay').onclick = () => this.playTake();
     TS.$('#voRec').onclick = () => (this.mr ? this.stop() : this.start());
     TS.$('#voMic').onchange = e => {
       TS.recorder.opts.micId = e.target.value;
@@ -92,6 +93,7 @@ TS.voiceover = {
 
   async start() {
     if (!this.stream) return TS.toast('No microphone available.', 'error');
+    this.stopTake();
     TS.$('#voRec').disabled = true;
     this.video.currentTime = this.clip.in;
     await this.countdown();
@@ -134,9 +136,11 @@ TS.voiceover = {
       TS.store.commit(p => {
         p.media.push(vm);
         const cl = p.clips.find(x => x.id === this.clipId);
-        if (cl) cl.audio = { mode: 'file', mediaId: vm.id, offset: 0, volume: 1 };
+        if (cl) cl.audio = { mode: 'file', mediaId: vm.id, offset: 0, volume: cl.audio && cl.audio.volume != null ? cl.audio.volume : 1, fx: cl.audio ? cl.audio.fx : null };
       });
       this.hasTake = true;
+      this.takePath = vm.path;
+      TS.$('#voPlay').hidden = false;
       this.setButton(false);
       TS.$('#voStatus').textContent = `Saved (${TS.fmt(vm.duration, false)}) and attached to the clip. Record again to retake, or close.`;
     } catch (e) {
@@ -144,7 +148,31 @@ TS.voiceover = {
     }
   },
 
+  /** Listen to the take with the clip's picture, before keeping it. */
+  playTake() {
+    if (this.mr || !this.takePath) return;
+    if (this.takeAudio) return this.stopTake();
+    this.video.muted = true;
+    this.video.currentTime = this.clip.in;
+    const a = (this.takeAudio = new Audio(api.fileUrl(this.takePath)));
+    a.onended = () => this.stopTake();
+    this.video.play().catch(() => {});
+    a.play().catch(() => this.stopTake());
+    TS.$('#voPlay').textContent = '■ Stop';
+    this.takeTimer = setInterval(() => { if (this.video.currentTime >= this.clip.out - 0.02) this.stopTake(); }, 100);
+  },
+
+  stopTake() {
+    clearInterval(this.takeTimer);
+    if (this.takeAudio) { this.takeAudio.pause(); this.takeAudio = null; }
+    this.video.pause();
+    TS.$('#voPlay').textContent = '▶ Play take';
+  },
+
   close() {
+    this.stopTake();
+    TS.$('#voPlay').hidden = true;
+    this.takePath = null;
     if (this.mr) this.stop();
     this.closeMic();
     this.video.pause();

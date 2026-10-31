@@ -60,6 +60,7 @@ TS.player = {
       e = document.createElement(tag);
       e.preload = 'auto';
       if (tag === 'video') e.playsInline = true;
+      this.route(e);
       map.set(key, e);
     }
     if (e.dataset.src !== url) {
@@ -67,6 +68,57 @@ TS.player = {
       e.src = url;
     }
     return e;
+  },
+
+  /* Audio goes through Web Audio so clips can be boosted above 100%, with a limiter like the export. */
+  ensureCtx() {
+    if (!this.ac) {
+      this.ac = new AudioContext();
+      const lim = this.ac.createDynamicsCompressor();
+      lim.threshold.value = -1;
+      lim.knee.value = 0;
+      lim.ratio.value = 20;
+      lim.attack.value = 0.002;
+      lim.release.value = 0.1;
+      lim.connect(this.ac.destination);
+      this.limiter = lim;
+    }
+    if (this.ac.state === 'suspended') this.ac.resume().catch(() => {});
+    return this.ac;
+  },
+
+  route(e) {
+    try {
+      const ac = this.ensureCtx();
+      const g = ac.createGain();
+      ac.createMediaElementSource(e).connect(g);
+      g.connect(this.limiter);
+      e._gain = g;
+    } catch (err) { /* fall back to element volume */ }
+  },
+
+  setGain(e, v) {
+    if (e._gain) {
+      e.volume = 1;
+      e._gain.gain.value = Math.max(0, v);
+    } else {
+      e.volume = TS.clamp(v, 0, 1);
+    }
+  },
+
+  /** Enhanced (processed) version of an audio source, or null while it's being prepared. */
+  fxSource(path, fx) {
+    if (this.bypassFx || !TSAudioFx.isActive(fx)) return null;
+    const k = path + '|' + TSAudioFx.key(fx);
+    const c = TS.fxCache[k];
+    if (c) return c.path || null;
+    TS.fxCache[k] = { path: null };
+    api.fxRender(path, TSAudioFx.norm(fx)).then(
+      out => { TS.fxCache[k].path = out; this.needSync = true; TS.store.emit('fx'); },
+      err => { TS.fxCache[k].error = err.message; TS.toast(`Couldn't prepare the enhanced preview: ${err.message}`, 'error'); }
+    );
+    TS.store.emit('fx');
+    return null;
   },
 
   setTime(t) {
@@ -86,6 +138,7 @@ TS.player = {
 
   play() {
     if (!this.clips.length) return;
+    this.ensureCtx();
     if (this.t >= this.L.total - 0.02) this.t = 0;
     this.playing = true;
     this.playT0 = this.t;
@@ -144,19 +197,28 @@ TS.player = {
         g = k === 0 ? 1 - p : p;
       }
       const a = c.audio || { mode: 'original' };
-      const vol = TS.clamp((a.volume == null ? 1 : a.volume) * g, 0, 1);
-      v.muted = a.mode !== 'original';
-      v.volume = vol;
+      const vol = Math.max(0, (a.volume == null ? 1 : a.volume) * g);
 
-      if (a.mode === 'file' && a.mediaId) {
+      // where this clip's sound comes from, and its enhanced version if any
+      let src = null;
+      let off = 0;
+      let dur = 0;
+      if (a.mode === 'original' && m.hasAudio) { src = m.path; off = c.in; dur = m.duration; }
+      else if (a.mode === 'file' && a.mediaId) {
         const am = TS.store.media(a.mediaId);
-        if (am && !am.missing) {
-          const ae = this.mediaEl(this.auds, c.id, am.path, 'audio');
-          used.add(ae);
-          const al = (a.offset || 0) + into;
-          if (al < 0 || (am.duration && al >= am.duration)) { if (!ae.paused) ae.pause(); }
-          else { ae.volume = vol; this.syncMedia(ae, al, force); }
-        }
+        if (am && !am.missing) { src = am.path; off = +a.offset || 0; dur = am.duration; }
+      }
+      const fxPath = src ? this.fxSource(src, a.fx) : null;
+      const sep = fxPath || (a.mode === 'file' ? src : null);
+
+      v.muted = !(a.mode === 'original' && !fxPath);
+      this.setGain(v, vol);
+      if (sep) {
+        const ae = this.mediaEl(this.auds, c.id, sep, 'audio');
+        used.add(ae);
+        const al = off + into;
+        if (al < 0 || (dur && al >= dur)) { if (!ae.paused) ae.pause(); }
+        else { this.setGain(ae, vol); this.syncMedia(ae, al, force); }
       }
     });
     for (const e of this.els.values()) if (!used.has(e) && !e.paused) e.pause();

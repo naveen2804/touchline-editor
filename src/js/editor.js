@@ -89,7 +89,7 @@ TS.editor = {
       TS.store.commit(p => {
         if (isNew) p.media.push(am);
         const cl = p.clips.find(x => x.id === id);
-        cl.audio = { mode: 'file', mediaId: am.id, offset: cl.in, volume: cl.audio ? cl.audio.volume : 1 };
+        cl.audio = { mode: 'file', mediaId: am.id, offset: cl.in, volume: cl.audio ? cl.audio.volume : 1, fx: cl.audio ? cl.audio.fx : null };
       });
       TS.toast('Audio detached — it now sits on its own track (purple). Shift, replace or mute it in the clip panel.', 'ok', 5000);
     } catch (e) {

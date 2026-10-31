@@ -9,6 +9,8 @@ const os = require('os');
 const { spawn } = require('child_process');
 const { buildExport } = require('./shared/exportGraph');
 const encoders = require('./shared/encoders');
+const audioFx = require('./shared/audioFx');
+const crypto = require('crypto');
 
 // Keep the recorder drawing at full speed while you're working in another window.
 app.commandLine.appendSwitch('disable-renderer-backgrounding');
@@ -403,6 +405,62 @@ function registerIpc() {
   });
 
   ipcMain.handle('exists', (e, files) => files.map(f => !!f && fs.existsSync(f)));
+
+  // --- voice enhancement: full-length processed audio for preview (cached on disk)
+  const fxJobs = new Map();
+  ipcMain.handle('fx-render', async (e, src, fx) => {
+    const st = fs.statSync(src);
+    const id = crypto.createHash('sha1').update(`${src}|${st.size}|${st.mtimeMs}|${audioFx.key(fx)}`).digest('hex').slice(0, 20);
+    const dir = path.join(app.getPath('userData'), 'fx-cache');
+    fs.mkdirSync(dir, { recursive: true });
+    const out = path.join(dir, `${id}.wav`);
+    if (fs.existsSync(out)) return out;
+    if (!fxJobs.has(id)) {
+      fxJobs.set(id, (async () => {
+        const info = await probe(src);
+        const tmp = `${out}.part.wav`;
+        task('Preparing enhanced audio preview…', 0);
+        try {
+          await runFfmpeg(['-y', '-i', src, '-vn', '-map', '0:a:0', '-af', audioFx.chain(fx).join(','), '-ar', '48000', '-ac', '2', tmp],
+            { duration: info.duration || 0, onProgress: p => task('Preparing enhanced audio preview…', p) });
+          fs.renameSync(tmp, out);
+          return out;
+        } finally {
+          taskDone();
+          fxJobs.delete(id);
+        }
+      })());
+    }
+    return fxJobs.get(id);
+  });
+
+  // --- mic test: process a short take and measure loudness of both versions
+  const loudness = file => new Promise(resolve => {
+    const p = spawn(FFMPEG, ['-hide_banner', '-nostats', '-i', file, '-af', 'volumedetect', '-f', 'null', '-'], { windowsHide: true });
+    let err = '';
+    p.stderr.on('data', d => (err += d));
+    p.on('close', () => {
+      const mean = err.match(/mean_volume:\s*(-?[\d.]+|-inf)/);
+      const max = err.match(/max_volume:\s*(-?[\d.]+|-inf)/);
+      resolve({ mean: mean ? parseFloat(mean[1]) : null, max: max ? parseFloat(max[1]) : null });
+    });
+    p.on('error', () => resolve({ mean: null, max: null }));
+  });
+  ipcMain.handle('fx-test', async (e, data, fx, volume) => {
+    const base = path.join(os.tmpdir(), `ts_mictest_${Date.now()}`);
+    fs.writeFileSync(`${base}.webm`, Buffer.from(data));
+    try {
+      await runFfmpeg(['-y', '-i', `${base}.webm`, '-ar', '48000', '-ac', '2', `${base}.orig.wav`]);
+      const filters = [...audioFx.chain(fx), ...audioFx.gainChain(volume, fx)];
+      await runFfmpeg(['-y', '-i', `${base}.orig.wav`, '-af', filters.join(','), `${base}.fx.wav`]);
+      return {
+        original: { path: `${base}.orig.wav`, ...(await loudness(`${base}.orig.wav`)) },
+        enhanced: { path: `${base}.fx.wav`, ...(await loudness(`${base}.fx.wav`)) }
+      };
+    } finally {
+      fs.unlink(`${base}.webm`, () => {});
+    }
+  });
   ipcMain.handle('probe', async (e, file) => probe(file).catch(() => null));
 
   // --- export

@@ -423,3 +423,21 @@ body.dropping #dropOverlay { display: grid; }
 .enc-note.cpu { color: var(--muted); }
 .exp-warn { margin: 8px 0 0; padding: 8px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5;
   background: rgba(245, 184, 75, .1); border: 1px solid rgba(245, 184, 75, .35); color: #f8d38f; }
+
+.val.wide { width: 104px; }
+.fx .mini-label { margin-top: 2px; }
+.fx-seg { margin-bottom: 10px; }
+.fx-seg button { padding: 4px 2px; font-size: 11.5px; min-width: 0; }
+.fx-status { font-size: 12px; color: var(--muted); margin: 2px 0 0; min-height: 16px; }
+button.on-warn { border-color: rgba(245,184,75,.6); color: #f8d38f; background: rgba(245,184,75,.1); }
+.mic-test { background: var(--panel2); border: 1px solid var(--line2); border-radius: 10px; padding: 10px 12px; margin: 4px 0 6px; }
+.mic-test-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.mic-test-body { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.mic-test-body b { color: var(--text); }
+.mic-test-body .good { color: var(--ok); }
+.mic-test-body .bad { color: #ff8d98; }
+.mic-test-body .meh { color: var(--warn); }
+.mic-test .btn-row { margin-top: 8px; }
+.rec-dot-sm { width: 8px; height: 8px; border-radius: 50%; background: var(--rec); }
+#btnMicTest.recording { color: #ff9aa4; border-color: rgba(255,75,92,.6); }
+#btnMicTest.recording .rec-dot-sm { animation: blink 1s infinite; }

@@ -147,6 +147,8 @@ TS.timeline = {
           label = `${am.voiceover ? 'Voice' : 'Detached'} · ${am.name}`;
         } else label = 'Pick an audio source';
       }
+      if (a.mode !== 'none' && TSAudioFx.isActive(a.fx)) label += ' · ✦ enhanced';
+      if (a.mode !== 'none' && a.volume != null && Math.abs(a.volume - 1) > 0.01) label += ` · ${Math.round(a.volume * 100)}%`;
       ah += `<div class="aud ${cls} ${c.id === sel ? 'sel' : ''}" data-id="${c.id}" style="left:${left}px;width:${w}px" title="${TS.esc(label)}"><span>${TS.esc(label)}</span></div>`;
     });
 

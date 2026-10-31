@@ -166,3 +166,62 @@ TS.platformKeys = (root = document) => {
     else if (k.textContent === 'Alt') k.textContent = '⌥';
   });
 };
+
+/* ------------------------------------------------- voice enhancement UI */
+TS.fxCache = {};
+TS.volLabel = v => {
+  const db = TSAudioFx.toDb(v);
+  return `${Math.round(v * 100)}% · ${isFinite(db) ? (db >= 0 ? '+' : '') + db.toFixed(1) + ' dB' : 'muted'}`;
+};
+
+/** Shared controls for volume/boost + enhancement. state = { fx, volume } */
+TS.fxControlsHTML = (state, opts = {}) => {
+  const fx = TSAudioFx.norm(state.fx);
+  const v = state.volume == null ? 1 : state.volume;
+  return `
+    <div class="fx">
+      <div class="slider-row"><span>${opts.volLabel || 'Volume'}</span>
+        <input type="range" min="0" max="4" step="0.01" data-fx="volume" value="${v}" title="Up to 400% — a limiter stops boosted audio from distorting">
+        <span class="val wide" data-fxval>${TS.volLabel(v)}</span>
+      </div>
+      <div class="mini-label">Voice tone</div>
+      <div class="seg full small fx-seg">${TSAudioFx.PRESETS.map(p => `<button data-fxpreset="${p.id}" class="${fx.preset === p.id ? 'on' : ''}">${p.label}</button>`).join('')}</div>
+      <div class="mini-label">Background noise reduction</div>
+      <div class="seg full small fx-seg">${TSAudioFx.NOISE.map((n, i) => `<button data-fxnoise="${i}" class="${fx.noise === i ? 'on' : ''}">${n}</button>`).join('')}</div>
+      <label class="check"><input type="checkbox" data-fxflag="rumble" ${fx.rumble ? 'checked' : ''}> Remove rumble &amp; hum</label>
+      <label class="check"><input type="checkbox" data-fxflag="compress" ${fx.compress ? 'checked' : ''}> Even out loud and soft words</label>
+      <label class="check"><input type="checkbox" data-fxflag="level" ${fx.level ? 'checked' : ''}> Auto level (consistent loudness)</label>
+    </div>`;
+};
+
+/** Wire the controls. set(patch, live) receives {fx} or {volume}; live = slider still moving. */
+TS.bindFx = (root, get, set) => {
+  if (!root) return;
+  root.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || !root.contains(b)) return;
+    const fx = TSAudioFx.norm(get().fx);
+    if (b.dataset.fxpreset) fx.preset = b.dataset.fxpreset;
+    else if (b.dataset.fxnoise != null) fx.noise = +b.dataset.fxnoise;
+    else return;
+    e.stopPropagation();
+    TS.$$('[data-fxpreset]', root).forEach(x => x.classList.toggle('on', x.dataset.fxpreset === fx.preset));
+    TS.$$('[data-fxnoise]', root).forEach(x => x.classList.toggle('on', +x.dataset.fxnoise === fx.noise));
+    set({ fx });
+  });
+  root.addEventListener('change', e => {
+    const k = e.target.dataset.fxflag;
+    if (!k) return;
+    e.stopPropagation();
+    const fx = TSAudioFx.norm(get().fx);
+    fx[k] = e.target.checked;
+    set({ fx });
+  });
+  root.addEventListener('input', e => {
+    if (e.target.dataset.fx !== 'volume') return;
+    e.stopPropagation();
+    const v = +e.target.value;
+    TS.$('[data-fxval]', root).textContent = TS.volLabel(v);
+    set({ volume: v }, true);
+  });
+};

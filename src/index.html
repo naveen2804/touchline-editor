@@ -73,6 +73,22 @@
         <label class="check"><input type="checkbox" id="optSysAudio"> Record computer sound too</label>
         <label class="check"><input type="checkbox" id="optNoise"> Noise suppression on mic</label>
 
+        <div class="mic-test">
+          <div class="mic-test-head">
+            <b>Test your audio</b>
+            <button id="btnMicTest" class="small"><span class="rec-dot-sm"></span><span id="micTestLabel">Record 5 s</span></button>
+          </div>
+          <div class="mic-test-body" id="micTestBody">Say a few lines as you would in a video, then listen back exactly as it will be recorded.</div>
+          <div class="btn-row" id="micTestPlay" hidden>
+            <button id="btnPlayOrig">▶ As recorded</button>
+            <button id="btnPlayFx">▶ With enhancement</button>
+          </div>
+        </div>
+
+        <h3>Voice enhancement</h3>
+        <p class="help" style="margin-top:-4px">Applied to new recordings. You can still change it per clip in the editor.</p>
+        <div id="recFx"></div>
+
         <h3>Facecam</h3>
         <div class="row-split">
           <div>
@@ -223,6 +239,7 @@
     <p class="vo-status" id="voStatus"></p>
     <div class="modal-actions">
       <button class="ghost" id="voClose">Close</button>
+      <button id="voPlay" hidden>▶ Play take</button>
       <button class="rec-btn" id="voRec"><span class="rec-dot"></span><span id="voRecLabel">Record</span></button>
     </div>
   </div>
@@ -287,6 +304,7 @@
 <div id="dropOverlay"><div>Drop to import</div></div>
 
 <script src="../shared/timing.js"></script>
+<script src="../shared/audioFx.js"></script>
 <script src="js/util.js"></script>
 <script src="js/state.js"></script>
 <script src="js/transitions.js"></script>

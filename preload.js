@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld('api', {
   extractAudio: p => inv('extract-audio', p),
   exists: paths => inv('exists', paths),
   probe: p => inv('probe', p),
+  fxRender: (src, fx) => inv('fx-render', src, fx),
+  fxTest: (bytes, fx, volume) => inv('fx-test', bytes, fx, volume),
 
   exportPath: name => inv('export-path', name),
   exportDialog: current => inv('export-dialog', current),

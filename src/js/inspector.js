@@ -7,6 +7,7 @@ TS.inspector = {
   init() {
     this.root = TS.$('#inspector');
     TS.store.on(r => (r === 'change' || r === 'select') && this.render());
+    TS.store.on(r => r === 'fx' && this.fxStatus());
     this.root.addEventListener('click', e => this.onClick(e));
     this.root.addEventListener('change', e => this.onChange(e));
     this.root.addEventListener('input', e => this.onInput(e));
@@ -91,17 +92,26 @@ TS.inspector = {
             <button data-nudge="0.0333">+1f</button>
             <button data-nudge="0.1">+0.1s</button>
           </div>` : ''}
-        ${a.mode !== 'none' ? `
-          <div class="slider-row"><span>Volume</span>
-            <input type="range" min="0" max="2" step="0.01" data-f="volume" value="${vol}">
-            <span class="val" id="volVal">${Math.round(vol * 100)}%</span>
-          </div>` : ''}
         <div class="btn-row">
           <button data-act="detach" ${m && m.hasAudio && a.mode === 'original' ? '' : 'disabled'} title="Split the sound into its own track">${TS.icon('unlink')}Detach audio</button>
           <button data-act="voiceover">${TS.icon('mic')}Re-record voice</button>
         </div>
         <p class="help">Detach pulls this clip's sound out as a separate track you can shift, swap or delete. Re-record lets you speak over the clip while it plays.</p>
       </div>
+
+      ${a.mode !== 'none' && (a.mode === 'file' || (m && m.hasAudio)) ? `
+      <div class="insp-sec" id="inspFx">
+        <h3>Volume &amp; voice enhancement</h3>
+        ${TS.fxControlsHTML({ fx: a.fx, volume: vol }, { volLabel: 'Volume' })}
+        <p class="fx-status" id="fxStatus"></p>
+        <div class="btn-row">
+          <button data-act="fxCompare" class="${TS.player.bypassFx ? 'on-warn' : ''}" title="Temporarily hear the original sound">${TS.icon(TS.player.bypassFx ? 'volume' : 'mute')}${TS.player.bypassFx ? 'Hearing original — click for enhanced' : 'Compare with original'}</button>
+        </div>
+        <div class="btn-row">
+          <button data-act="fxAll" title="Use this clip's volume and enhancement on every clip">Apply to all clips</button>
+          <button data-act="fxReset">${TS.icon('reset')}Reset</button>
+        </div>
+      </div>` : ''}
 
       <div class="insp-sec" id="inspTrans">
         <h3>Transition into next clip</h3>
@@ -122,6 +132,37 @@ TS.inspector = {
           <button data-act="del" class="danger">${TS.icon('trash')}Delete</button>
         </div>
       </div>`;
+    this.bindClipFx(c);
+  },
+
+  bindClipFx(c) {
+    const box = TS.$('#inspFx .fx', this.root);
+    if (!box) return;
+    TS.bindFx(box, () => ({ fx: c.audio.fx, volume: c.audio.volume == null ? 1 : c.audio.volume }), (patch, live) => {
+      this.lock = true;
+      try {
+        TS.store.commit(() => {
+          if (patch.fx) c.audio.fx = patch.fx;
+          if (patch.volume != null) c.audio.volume = patch.volume;
+        }, live ? 'vol-' + c.id : null);
+      } finally { this.lock = false; }
+      this.fxStatus();
+    });
+    this.fxStatus();
+  },
+
+  fxStatus() {
+    const el = TS.$('#fxStatus', this.root);
+    const c = TS.store.selectedClip();
+    if (!el || !c) return;
+    const a = c.audio;
+    if (!TSAudioFx.isActive(a.fx)) { el.textContent = ''; return; }
+    const m = TS.store.media(a.mode === 'file' ? a.mediaId : c.mediaId);
+    const k = m ? m.path + '|' + TSAudioFx.key(a.fx) : '';
+    const st = TS.fxCache[k];
+    el.textContent = st && st.path ? `✓ ${TSAudioFx.describe(a.fx)} — preview ready`
+      : st && st.error ? 'Preview failed — the export will still apply the enhancement.'
+      : `Preparing preview of: ${TSAudioFx.describe(a.fx)}… (the first time takes a moment for long clips)`;
   },
 
   renderProject() {
@@ -209,6 +250,18 @@ TS.inspector = {
       case 'detach': return ed.detach(c.id);
       case 'voiceover': return TS.voiceover.open(c.id);
       case 'dup': return ed.duplicate(c.id);
+      case 'fxCompare':
+        TS.player.bypassFx = !TS.player.bypassFx;
+        TS.player.needSync = true;
+        return this.render();
+      case 'fxAll': {
+        const fx = TSAudioFx.norm(c.audio.fx);
+        const vol = c.audio.volume == null ? 1 : c.audio.volume;
+        TS.store.commit(p => p.clips.forEach(cl => { cl.audio = { ...cl.audio, fx: { ...fx }, volume: vol }; }));
+        return TS.toast(`Volume and enhancement applied to all ${TS.store.project.clips.length} clips`);
+      }
+      case 'fxReset':
+        return TS.store.commit(() => { c.audio = { ...c.audio, fx: null, volume: 1 }; });
       case 'del': return ed.deleteSelected();
       case 'importMusic': {
         const paths = await api.openFiles();
