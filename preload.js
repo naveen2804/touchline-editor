@@ -7,6 +7,7 @@ const CHANNELS = ['hotkey', 'task', 'export-progress', 'export-encoder', 'rec-st
 
 contextBridge.exposeInMainWorld('api', {
   platform: process.platform,
+  macSystemPicker: process.platform === 'darwin' && parseInt(require('os').release(), 10) >= 24,
   paths: () => inv('paths'),
   mediaAccess: () => inv('media-access'),
   openPrivacy: pane => inv('open-privacy', pane),

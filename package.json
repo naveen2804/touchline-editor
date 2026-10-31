@@ -1,7 +1,7 @@
 {
   "name": "touchline-studio",
   "productName": "Touchline Studio",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Record and edit football tactical-analysis videos: facecam + screen recorder and a simple clip editor.",
   "author": "Naveen Narayan",
   "main": "main.js",

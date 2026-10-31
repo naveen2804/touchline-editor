@@ -210,6 +210,7 @@ class FrameSource {
     await this.refreshDevices(!this.permsAsked);
     this.permsAsked = true;
     await Promise.all([this.startCam(), this.startMic()]);
+    if (api.macSystemPicker && this.opts.sourceId) { this.opts.sourceId = null; save(); }
     if (this.opts.sourceId && !this.screen) {
       await this.startScreen(this.opts.sourceId, this.opts.sourceName, this.opts.sourceThumb, true);
     }
@@ -329,6 +330,11 @@ class FrameSource {
         api.getSources().catch(() => {});
         return;
       }
+      if (api.macSystemPicker) {
+        // Apple's own picker (shows every window and screen) opens from getDisplayMedia
+        if (!refreshOnly) TS.closeModal('srcModal');
+        return this.startScreen('system', '', null);
+      }
     }
     const sources = await api.getSources();
     const card = s => `
@@ -339,8 +345,16 @@ class FrameSource {
     const screens = sources.filter(s => s.isScreen);
     const wins = sources.filter(s => !s.isScreen);
     grid.innerHTML =
-      `<div class="src-section">Windows</div>${wins.map(card).join('') || '<div class="muted">No windows found</div>'}` +
+      `<div class="src-section">Windows</div>${wins.map(card).join('') || (TS.isMac
+        ? `<div class="mac-perm"><b>No windows listed</b><p>macOS is only sharing the screen with Touchline Studio. This usually means the Screen Recording permission belongs to an older copy of the app.</p>
+            <ol><li>Open <b>System Settings → Privacy &amp; Security → Screen &amp; System Audio Recording</b>.</li>
+            <li>Select <b>Touchline Studio</b> and remove it with the <b>−</b> button.</li>
+            <li>Quit Touchline Studio (⌘Q), reopen it, click <b>Choose…</b> and allow access again.</li></ol>
+            <button id="openScreenPerm2">Open System Settings</button></div>`
+        : '<div class="muted">No windows found</div>')}` +
       `<div class="src-section">Entire screen</div>${screens.map(card).join('')}`;
+    const op = TS.$('#openScreenPerm2');
+    if (op) op.onclick = () => api.openPrivacy('screen');
     TS.$$('.src-item', grid).forEach(b => {
       b.onclick = () => {
         const s = sources.find(x => x.id === b.dataset.id);
@@ -373,15 +387,38 @@ class FrameSource {
         this.sysNode = this.ac.createMediaStreamSource(new MediaStream([at]));
         this.sysNode.connect(this.dest);
       }
+      if (id === 'system') {
+        const vt = stream.getVideoTracks()[0];
+        const surf = (vt.getSettings && vt.getSettings().displaySurface) || '';
+        name = vt.label && !/^(screen|window|web-contents-media-stream):/.test(vt.label) ? vt.label
+          : surf === 'monitor' ? 'Entire screen' : 'Selected window';
+        thumb = await this.grabThumb();
+      }
       Object.assign(this.opts, { sourceId: id, sourceName: name, sourceThumb: thumb });
       save();
       if (!quiet && this.opts.layout === 'cam') this.setLayout('split');
     } catch (e) {
-      if (!quiet) TS.toast(`Couldn't capture "${name}": ${e.message}`, 'error');
+      const cancelled = e && (e.name === 'NotAllowedError' || e.name === 'AbortError') && id === 'system';
+      if (!quiet && !cancelled) TS.toast(`Couldn't capture${name ? ` "${name}"` : ''}: ${e.message}`, 'error');
       this.opts.sourceId = null;
       save();
     }
     this.syncUI();
+  };
+
+  /** Small preview image of the captured window for the Sources panel. */
+  R.grabThumb = async function () {
+    for (let i = 0; i < 20 && this.screen && !this.screen.image; i++) await new Promise(res => setTimeout(res, 100));
+    const img = this.screen && this.screen.image;
+    if (!img) return null;
+    const c = document.createElement('canvas');
+    c.width = 320;
+    c.height = 180;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, c.width, c.height);
+    TS.drawContain(ctx, img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.7);
   };
 
   R.clearSource = function () {

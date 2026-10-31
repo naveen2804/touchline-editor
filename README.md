@@ -33,6 +33,7 @@ The installers aren't signed with a paid Microsoft or Apple certificate, so on f
 2. Open the app. If macOS says it can't verify the developer, open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**.
 3. Allow **Camera** and **Microphone** when asked.
 4. The first time you choose a window to record, turn on Touchline Studio under **Screen & System Audio Recording** in System Settings, then reopen the app.
+5. On macOS 15 (Sequoia) and later, **Choose…** opens Apple's own window picker, which lists all your windows; click Chrome or Lineup Builder there. On older macOS the app shows its own list. If that list only shows "Entire screen", remove Touchline Studio from **Screen & System Audio Recording** with the **−** button, then reopen the app and allow it again.
 
 Not sure which Mac you have? Apple menu → **About This Mac**. If it says "Chip: Apple M…", it's Apple Silicon.
 

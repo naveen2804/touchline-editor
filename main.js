@@ -26,6 +26,8 @@ const FFMPEG = unpacked(require('ffmpeg-static'));
 const FFPROBE = unpacked(require('ffprobe-static').path);
 const ICON = path.join(__dirname, 'build', 'icon.png');
 const IS_MAC = process.platform === 'darwin';
+// macOS 15 (Darwin 24)+: use Apple's ScreenCaptureKit picker, which reliably lists every window.
+const MAC_SYSTEM_PICKER = IS_MAC && parseInt(os.release(), 10) >= 24;
 const PRELOAD = path.join(__dirname, 'preload.js');
 
 let mainWin = null;
@@ -545,7 +547,7 @@ app.whenReady().then(() => {
     } catch (err) {
       callback({});
     }
-  });
+  }, { useSystemPicker: MAC_SYSTEM_PICKER }); // set once: toggling this option can hang on macOS
 
   if (IS_MAC) {
     Menu.setApplicationMenu(Menu.buildFromTemplate([
